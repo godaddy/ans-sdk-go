@@ -1,0 +1,396 @@
+package verify
+
+import (
+	"context"
+	"errors"
+	"strings"
+
+	"github.com/godaddy/ans-sdk-go/models"
+)
+
+// applyFailurePolicy applies the configured failure policy when DNS or TLog errors occur.
+// For FailClosed, returns the original error outcome.
+// For FailOpenWithCache, checks stale cache entries.
+// For FailOpen, returns a pass-through outcome.
+func applyFailurePolicy(config *verifierConfig, fqdn models.Fqdn, version *models.Version, errorOutcome *VerificationOutcome) *VerificationOutcome {
+	switch config.failurePolicy {
+	case FailClosed:
+		return errorOutcome
+	case FailOpenWithCache:
+		return applyFailOpenWithCache(config, fqdn, version, errorOutcome)
+	case FailOpen:
+		return NewFailOpenOutcome(errorOutcome.Error)
+	}
+	return errorOutcome
+}
+
+// applyFailOpenWithCache attempts to use a stale cached badge for fail-open-with-cache policy.
+func applyFailOpenWithCache(config *verifierConfig, fqdn models.Fqdn, version *models.Version, errorOutcome *VerificationOutcome) *VerificationOutcome {
+	if config.cache == nil {
+		return errorOutcome
+	}
+
+	maxStale := config.failurePolicyConfig.MaxStaleness
+	if version != nil {
+		if cached, ok := config.cache.GetStaleByFqdnVersion(fqdn, *version, maxStale); ok {
+			return &VerificationOutcome{Type: OutcomeFailOpen, Badge: cached.Badge}
+		}
+	} else {
+		if cached, ok := config.cache.GetStaleByFqdn(fqdn, maxStale); ok {
+			return &VerificationOutcome{Type: OutcomeFailOpen, Badge: cached.Badge}
+		}
+	}
+	return errorOutcome
+}
+
+// defaultDANEPort is the standard HTTPS port used for DANE/TLSA lookups.
+const defaultDANEPort = 443
+
+// verifyDANE performs an optional DANE/TLSA check if a DANEResolver is configured.
+// Returns nil if DANE is not configured, passes, or should be skipped.
+// Returns an error outcome only if DANE explicitly rejects (mismatch or DNSSEC failure).
+func verifyDANE(ctx context.Context, config *verifierConfig, fqdn models.Fqdn, cert *CertIdentity, outcome *VerificationOutcome) *VerificationOutcome {
+	if config.daneResolver == nil {
+		return nil
+	}
+
+	daneVerifier := NewDANEVerifier(config.daneResolver)
+	daneOutcome := daneVerifier.Verify(ctx, fqdn, defaultDANEPort, cert)
+
+	if daneOutcome.IsReject() {
+		return NewDANERejectionOutcome(outcome.Badge, daneOutcome)
+	}
+
+	// DANE passed, skipped, no records, or lookup error — add info to outcome
+	if daneOutcome.IsPass() && daneOutcome.Type == DANEVerified {
+		outcome.DANEOutcome = daneOutcome
+	}
+
+	return nil
+}
+
+// validateBadgeURL validates a badge URL against the configured URL validator.
+// Returns nil if validation passes or no validator is configured.
+func validateBadgeURL(config *verifierConfig, badgeURL string) *VerificationOutcome {
+	if config.urlValidator == nil {
+		return nil
+	}
+	if err := config.urlValidator.Validate(badgeURL); err != nil {
+		return NewURLValidationErrorOutcome(err)
+	}
+	return nil
+}
+
+// ServerVerifier verifies server certificates against the ANS transparency log.
+// Use this when a client wants to verify that a server is a legitimate ANS agent.
+type ServerVerifier struct {
+	config *verifierConfig
+}
+
+// NewServerVerifier creates a new server verifier with the given options.
+func NewServerVerifier(opts ...Option) *ServerVerifier {
+	config := defaultConfig()
+	for _, opt := range opts {
+		opt(config)
+	}
+	return &ServerVerifier{config: config}
+}
+
+// Verify verifies a server certificate for the given FQDN.
+func (v *ServerVerifier) Verify(ctx context.Context, fqdn models.Fqdn, cert *CertIdentity) *VerificationOutcome {
+	// 1. Check cache first
+	if v.config.cache != nil {
+		if cached, ok := v.config.cache.GetByFqdn(fqdn); ok {
+			result := v.verifyWithBadge(cached.Badge, cert, fqdn)
+			if result.Type != OutcomeFingerprintMismatch {
+				// Cache hit: either success or non-fingerprint failure (hostname, status)
+				return result
+			}
+			// Fingerprint mismatch from cache — may be stale after cert renewal.
+			// Fall through to fetch fresh badge.
+		}
+	}
+
+	// 2. Fetch badge from DNS + TLog
+	badge, outcome := v.fetchBadge(ctx, fqdn)
+	if outcome != nil {
+		return outcome
+	}
+
+	// 3. Cache the badge
+	if v.config.cache != nil {
+		v.config.cache.Insert(fqdn, badge)
+	}
+
+	// 4. Verify against badge
+	outcome = v.verifyWithBadge(badge, cert, fqdn)
+	if !outcome.IsSuccess() {
+		return outcome
+	}
+
+	// 5. Optional DANE/TLSA check (can reject even if badge verification passed)
+	if rejection := verifyDANE(ctx, v.config, fqdn, cert, outcome); rejection != nil {
+		return rejection
+	}
+
+	return outcome
+}
+
+// Prefetch fetches and caches a badge for an FQDN.
+// Returns immediately if a fresh cached entry exists.
+func (v *ServerVerifier) Prefetch(ctx context.Context, fqdn models.Fqdn) (*models.Badge, error) {
+	// Return cached badge if available and not expired
+	if v.config.cache != nil {
+		if cached, ok := v.config.cache.GetByFqdn(fqdn); ok {
+			return cached.Badge, nil
+		}
+	}
+
+	badge, outcome := v.fetchBadge(ctx, fqdn)
+	if outcome != nil {
+		return nil, outcome.ToError()
+	}
+
+	if v.config.cache != nil {
+		v.config.cache.Insert(fqdn, badge)
+	}
+
+	return badge, nil
+}
+
+// fetchBadge fetches a badge from DNS and TLog.
+func (v *ServerVerifier) fetchBadge(ctx context.Context, fqdn models.Fqdn) (*models.Badge, *VerificationOutcome) {
+	// DNS lookup
+	record, err := v.config.dnsResolver.FindPreferredBadge(ctx, fqdn)
+	if err != nil {
+		// ErrRecordNotFound means not an ANS agent — never apply failure policy
+		if errors.Is(err, ErrRecordNotFound) {
+			return nil, NewNotAnsAgentOutcome(fqdn.String())
+		}
+		outcome := NewDNSErrorOutcome(err)
+		return nil, applyFailurePolicy(v.config, fqdn, nil, outcome)
+	}
+	if record == nil {
+		return nil, NewNotAnsAgentOutcome(fqdn.String())
+	}
+
+	// Validate badge URL before fetching
+	if outcome := validateBadgeURL(v.config, record.URL); outcome != nil {
+		return nil, outcome
+	}
+
+	// Fetch badge from transparency log
+	badge, err := v.config.tlogClient.FetchBadge(ctx, record.URL)
+	if err != nil {
+		outcome := NewTlogErrorOutcome(err)
+		return nil, applyFailurePolicy(v.config, fqdn, nil, outcome)
+	}
+
+	return badge, nil
+}
+
+// verifyWithBadge verifies a certificate against a badge.
+func (v *ServerVerifier) verifyWithBadge(badge *models.Badge, cert *CertIdentity, fqdn models.Fqdn) *VerificationOutcome {
+	// Check badge status
+	if !badge.Status.IsValidForConnection() {
+		return NewInvalidStatusOutcome(badge, badge.Status)
+	}
+
+	// Compare server certificate fingerprint
+	expectedFP := badge.ServerCertFingerprint()
+	if !cert.Fingerprint.Matches(expectedFP) {
+		return NewFingerprintMismatchOutcome(badge, expectedFP, cert.Fingerprint.String())
+	}
+
+	// Compare hostname
+	badgeHost := badge.AgentHost()
+	certFqdn := cert.FQDN()
+
+	if !strings.EqualFold(badgeHost, fqdn.String()) {
+		return NewHostnameMismatchOutcome(badge, fqdn.String(), badgeHost)
+	}
+
+	if certFqdn != nil && !strings.EqualFold(*certFqdn, badgeHost) {
+		return NewHostnameMismatchOutcome(badge, badgeHost, *certFqdn)
+	}
+
+	outcome := NewVerifiedOutcome(badge, cert.Fingerprint)
+	if badge.Status == models.BadgeStatusDeprecated {
+		outcome.Warnings = append(outcome.Warnings, "badge status is DEPRECATED")
+	}
+	return outcome
+}
+
+// ClientVerifier verifies mTLS client certificates against the ANS transparency log.
+// Use this when a server wants to verify that an mTLS client is a legitimate ANS agent.
+type ClientVerifier struct {
+	config *verifierConfig
+}
+
+// NewClientVerifier creates a new client verifier with the given options.
+func NewClientVerifier(opts ...Option) *ClientVerifier {
+	config := defaultConfig()
+	for _, opt := range opts {
+		opt(config)
+	}
+	return &ClientVerifier{config: config}
+}
+
+// Verify verifies an mTLS client certificate.
+func (v *ClientVerifier) Verify(ctx context.Context, cert *CertIdentity) *VerificationOutcome {
+	// 1. Extract FQDN from cert
+	fqdnStr := cert.FQDN()
+	if fqdnStr == nil {
+		return NewCertErrorOutcome(&VerificationError{Type: VerificationErrorNoCN})
+	}
+
+	fqdn, err := models.NewFqdn(*fqdnStr)
+	if err != nil {
+		return NewCertErrorOutcome(err)
+	}
+
+	// 2. Extract ANS name from URI SANs
+	ansName := cert.AnsName()
+	if ansName == nil {
+		return NewCertErrorOutcome(&VerificationError{Type: VerificationErrorNoURISAN})
+	}
+
+	// 3. Extract version
+	version := ansName.Version
+
+	// 4. Check cache first (by FQDN + version)
+	if v.config.cache != nil {
+		if cached, ok := v.config.cache.GetByFqdnVersion(fqdn, version); ok {
+			return v.verifyWithBadge(cached.Badge, cert, fqdn, ansName)
+		}
+	}
+
+	// 5. Fetch badge from DNS + TLog (matching version)
+	badge, outcome := v.fetchBadge(ctx, fqdn, version)
+	if outcome != nil {
+		return outcome
+	}
+
+	// 6. Cache the badge
+	if v.config.cache != nil {
+		v.config.cache.InsertForVersion(fqdn, version, badge)
+	}
+
+	// 7. Verify against badge
+	outcome = v.verifyWithBadge(badge, cert, fqdn, ansName)
+	if !outcome.IsSuccess() {
+		return outcome
+	}
+
+	// 8. Optional DANE/TLSA check (can reject even if badge verification passed)
+	if rejection := verifyDANE(ctx, v.config, fqdn, cert, outcome); rejection != nil {
+		return rejection
+	}
+
+	return outcome
+}
+
+// fetchBadge fetches a badge from DNS and TLog for a specific version.
+func (v *ClientVerifier) fetchBadge(ctx context.Context, fqdn models.Fqdn, version models.Version) (*models.Badge, *VerificationOutcome) {
+	// DNS lookup for specific version
+	record, err := v.config.dnsResolver.FindBadgeForVersion(ctx, fqdn, version)
+	if err != nil {
+		// ErrRecordNotFound means not an ANS agent — never apply failure policy
+		if errors.Is(err, ErrRecordNotFound) {
+			return nil, NewNotAnsAgentOutcome(fqdn.String())
+		}
+		outcome := NewDNSErrorOutcome(err)
+		return nil, applyFailurePolicy(v.config, fqdn, &version, outcome)
+	}
+	if record == nil {
+		return nil, NewNotAnsAgentOutcome(fqdn.String())
+	}
+
+	// Validate badge URL before fetching
+	if outcome := validateBadgeURL(v.config, record.URL); outcome != nil {
+		return nil, outcome
+	}
+
+	// Fetch badge from transparency log
+	badge, err := v.config.tlogClient.FetchBadge(ctx, record.URL)
+	if err != nil {
+		outcome := NewTlogErrorOutcome(err)
+		return nil, applyFailurePolicy(v.config, fqdn, &version, outcome)
+	}
+
+	return badge, nil
+}
+
+// verifyWithBadge verifies a client certificate against a badge.
+func (v *ClientVerifier) verifyWithBadge(badge *models.Badge, cert *CertIdentity, fqdn models.Fqdn, ansName *AnsName) *VerificationOutcome {
+	// Check badge status
+	if !badge.Status.IsValidForConnection() {
+		return NewInvalidStatusOutcome(badge, badge.Status)
+	}
+
+	// Compare identity certificate fingerprint
+	expectedFP := badge.IdentityCertFingerprint()
+	if !cert.Fingerprint.Matches(expectedFP) {
+		return NewFingerprintMismatchOutcome(badge, expectedFP, cert.Fingerprint.String())
+	}
+
+	// Compare hostname
+	badgeHost := badge.AgentHost()
+	if !strings.EqualFold(badgeHost, fqdn.String()) {
+		return NewHostnameMismatchOutcome(badge, fqdn.String(), badgeHost)
+	}
+
+	// Compare ANS name
+	badgeAnsName := badge.AgentName()
+	if !strings.EqualFold(badgeAnsName, ansName.String()) {
+		return NewAnsNameMismatchOutcome(badge, badgeAnsName, ansName.String())
+	}
+
+	outcome := NewVerifiedOutcome(badge, cert.Fingerprint)
+	if badge.Status == models.BadgeStatusDeprecated {
+		outcome.Warnings = append(outcome.Warnings, "badge status is DEPRECATED")
+	}
+	return outcome
+}
+
+// AnsVerifier is a high-level facade combining server and client verification.
+type AnsVerifier struct {
+	server *ServerVerifier
+	client *ClientVerifier
+}
+
+// NewAnsVerifier creates a new ANS verifier with the given options.
+// Both server and client verifiers share the same config (including cache).
+func NewAnsVerifier(opts ...Option) *AnsVerifier {
+	config := defaultConfig()
+	for _, opt := range opts {
+		opt(config)
+	}
+	return &AnsVerifier{
+		server: &ServerVerifier{config: config},
+		client: &ClientVerifier{config: config},
+	}
+}
+
+// VerifyServer verifies a server certificate for the given FQDN string.
+func (v *AnsVerifier) VerifyServer(ctx context.Context, fqdnStr string, cert *CertIdentity) *VerificationOutcome {
+	fqdn, err := models.NewFqdn(fqdnStr)
+	if err != nil {
+		return NewCertErrorOutcome(err)
+	}
+	return v.server.Verify(ctx, fqdn, cert)
+}
+
+// VerifyClient verifies an mTLS client certificate.
+func (v *AnsVerifier) VerifyClient(ctx context.Context, cert *CertIdentity) *VerificationOutcome {
+	return v.client.Verify(ctx, cert)
+}
+
+// Prefetch fetches and caches a badge for an FQDN string.
+func (v *AnsVerifier) Prefetch(ctx context.Context, fqdnStr string) (*models.Badge, error) {
+	fqdn, err := models.NewFqdn(fqdnStr)
+	if err != nil {
+		return nil, err
+	}
+	return v.server.Prefetch(ctx, fqdn)
+}

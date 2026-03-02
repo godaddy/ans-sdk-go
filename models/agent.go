@@ -1,0 +1,176 @@
+package models
+
+import (
+	"encoding/json"
+	"time"
+)
+
+// AgentEndpoint represents an agent endpoint configuration
+type AgentEndpoint struct {
+	AgentURL         string          `json:"agentUrl"`
+	MetaDataURL      string          `json:"metaDataUrl,omitempty"`
+	DocumentationURL string          `json:"documentationUrl,omitempty"`
+	Protocol         string          `json:"protocol"`
+	Transports       []string        `json:"transports,omitempty"`
+	Functions        []AgentFunction `json:"functions,omitempty"`
+}
+
+// AgentFunction describes a function provided by an agent endpoint
+type AgentFunction struct {
+	ID   string   `json:"id"`
+	Name string   `json:"name"`
+	Tags []string `json:"tags,omitempty"`
+}
+
+// AgentRegistrationRequest represents a registration request
+type AgentRegistrationRequest struct {
+	AgentDisplayName          string          `json:"agentDisplayName"`
+	AgentHost                 string          `json:"agentHost"`
+	AgentDescription          string          `json:"agentDescription,omitempty"`
+	IdentityCSRPEM            string          `json:"identityCsrPEM"`
+	ServerCertificatePEM      string          `json:"serverCertificatePEM,omitempty"`
+	ServerCertificateChainPEM string          `json:"serverCertificateChainPEM,omitempty"`
+	ServerCSRPEM              string          `json:"serverCsrPEM,omitempty"`
+	Version                   string          `json:"version"`
+	Endpoints                 []AgentEndpoint `json:"endpoints"`
+}
+
+// RegistrationPending represents a pending registration response
+type RegistrationPending struct {
+	Status     string          `json:"status"`
+	ANSName    string          `json:"ansName"`
+	AgentID    string          `json:"agentId,omitempty"`
+	Challenges []ChallengeInfo `json:"challenges,omitempty"`
+	DNSRecords []DNSRecord     `json:"dnsRecords,omitempty"`
+	ExpiresAt  time.Time       `json:"expiresAt,omitempty"`
+	Links      []Link          `json:"links,omitempty"`
+	NextSteps  []NextStep      `json:"nextSteps"`
+}
+
+// ChallengeInfo represents ACME challenge information
+type ChallengeInfo struct {
+	Type             string            `json:"type"`
+	Token            string            `json:"token,omitempty"`
+	KeyAuthorization string            `json:"keyAuthorization,omitempty"`
+	HTTPPath         string            `json:"httpPath,omitempty"`
+	DNSRecord        *DNSRecordDetails `json:"dnsRecord,omitempty"`
+	ExpiresAt        time.Time         `json:"expiresAt,omitempty"`
+}
+
+// DNSRecordDetails represents DNS record details for ACME challenge
+type DNSRecordDetails struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
+// DNSRecord represents a DNS record to be configured
+type DNSRecord struct {
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Value    string `json:"value"`
+	Purpose  string `json:"purpose,omitempty"`
+	TTL      int    `json:"ttl,omitempty"`
+	Priority int    `json:"priority,omitempty"`
+	Required bool   `json:"required,omitempty"`
+}
+
+// NextStep represents a required action
+type NextStep struct {
+	Action      string `json:"action"`
+	Description string `json:"description,omitempty"`
+	Endpoint    string `json:"endpoint,omitempty"`
+}
+
+// Link represents a HATEOAS link
+type Link struct {
+	Href string `json:"href"`
+	Rel  string `json:"rel"`
+}
+
+// AgentStatus represents agent status information
+// It can unmarshal from either a string (e.g., "ACTIVE") or an object with detailed status
+type AgentStatus struct {
+	Status         string    `json:"status,omitempty"`
+	Phase          string    `json:"phase,omitempty"`
+	CreatedAt      time.Time `json:"createdAt,omitempty"`
+	UpdatedAt      time.Time `json:"updatedAt,omitempty"`
+	ExpiresAt      time.Time `json:"expiresAt,omitempty"`
+	PendingSteps   []string  `json:"pendingSteps,omitempty"`
+	CompletedSteps []string  `json:"completedSteps,omitempty"`
+}
+
+// UnmarshalJSON implements custom unmarshaling to handle both string and object formats
+func (a *AgentStatus) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as a simple string first
+	var statusString string
+	if err := json.Unmarshal(data, &statusString); err == nil {
+		a.Status = statusString
+		return nil
+	}
+
+	// If that fails, unmarshal as an object
+	type Alias AgentStatus
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	return json.Unmarshal(data, aux)
+}
+
+// AgentDetails represents detailed agent information
+type AgentDetails struct {
+	AgentID               string               `json:"agentId"`
+	AgentDisplayName      string               `json:"agentDisplayName"`
+	AgentHost             string               `json:"agentHost"`
+	AgentDescription      string               `json:"agentDescription,omitempty"`
+	ANSName               string               `json:"ansName"`
+	Version               string               `json:"version"`
+	AgentStatus           *AgentStatus         `json:"agentStatus,omitempty"`
+	Endpoints             []AgentEndpoint      `json:"endpoints"`
+	DNSRecords            []DNSRecord          `json:"dnsRecords,omitempty"`
+	RegistrationTimestamp time.Time            `json:"registrationTimestamp,omitempty"`
+	LastRenewalTimestamp  time.Time            `json:"lastRenewalTimestamp,omitempty"`
+	RegistrationPending   *RegistrationPending `json:"registrationPending,omitempty"`
+	Links                 []Link               `json:"links,omitempty"`
+}
+
+// ChallengeDetails represents detailed challenge information
+type ChallengeDetails struct {
+	Status     string          `json:"status,omitempty"`
+	Challenges []ChallengeInfo `json:"challenges,omitempty"`
+	CreatedAt  time.Time       `json:"createdAt,omitempty"`
+	ExpiresAt  time.Time       `json:"expiresAt,omitempty"`
+}
+
+// AgentSearchResponse represents search results
+type AgentSearchResponse struct {
+	Agents         []AgentSearchResult `json:"agents"`
+	TotalCount     int                 `json:"totalCount"`
+	ReturnedCount  int                 `json:"returnedCount"`
+	Limit          int                 `json:"limit"`
+	Offset         int                 `json:"offset"`
+	HasMore        bool                `json:"hasMore"`
+	SearchCriteria *SearchCriteria     `json:"searchCriteria,omitempty"`
+}
+
+// AgentSearchResult represents a single search result
+type AgentSearchResult struct {
+	AgentDisplayName      string          `json:"agentDisplayName"`
+	AgentHost             string          `json:"agentHost"`
+	AgentDescription      string          `json:"agentDescription,omitempty"`
+	ANSName               string          `json:"ansName"`
+	Version               string          `json:"version"`
+	Endpoints             []AgentEndpoint `json:"endpoints"`
+	RegistrationTimestamp time.Time       `json:"registrationTimestamp,omitempty"`
+	TTL                   int             `json:"ttl,omitempty"`
+	Links                 []Link          `json:"links,omitempty"`
+}
+
+// SearchCriteria represents search criteria used
+type SearchCriteria struct {
+	AgentDisplayName string `json:"agentDisplayName,omitempty"`
+	AgentHost        string `json:"agentHost,omitempty"`
+	Version          string `json:"version,omitempty"`
+}
