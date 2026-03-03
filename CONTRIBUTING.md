@@ -61,20 +61,47 @@ with a high-level proposal and discuss it with the core contributors through
 Github comments. After reaching a consensus with core
 contributors about the change, discuss the best way to go about implementing it.
 
-> Tip: Keep your master branch pointing at the original repository and make
+> Tip: Keep your main branch pointing at the original repository and make
 > pull requests from branches on your fork. To do this, run:
 >
 > ```
 > git remote add upstream https://github.com/godaddy/ans-sdk-go.git
 > git fetch upstream
-> git branch --set-upstream-to=upstream/master master
+> git branch --set-upstream-to=upstream/main main
 > ```
 >
 > This will add the original repository as a "remote" called "upstream," Then
-> fetch the git information from that remote, then set your local master
-> branch to use the upstream master branch whenever you run git pull. Then you
-> can make all of your pull request branches based on this master branch.
-> Whenever you want to update your version of master, do a regular git pull.
+> fetch the git information from that remote, then set your local main
+> branch to use the upstream main branch whenever you run git pull. Then you
+> can make all of your pull request branches based on this main branch.
+> Whenever you want to update your version of main, do a regular git pull.
+
+## Commit Messages
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) to
+automate versioning and changelog generation. Commit messages must follow this format:
+
+```
+<type>[optional scope]: <description>
+```
+
+Common types:
+- `feat:` — A new feature (minor version bump)
+- `fix:` — A bug fix (patch version bump)
+- `docs:` — Documentation changes
+- `chore:` — Maintenance tasks
+- `refactor:` — Code refactoring
+- `test:` — Test additions or changes
+- `ci:` — CI/CD changes
+- `perf:` — Performance improvements
+
+Breaking changes: Append `!` after the type (e.g., `feat!: redesign API`) to signal
+a breaking change. For a Go module, a major version bump (e.g., v1 to v2) requires
+updating the module path to include `/v2`. Discuss with maintainers before introducing
+breaking changes.
+
+Commits that do not follow this format are ignored by the release automation and will
+not appear in the changelog or trigger a version bump.
 
 ## Code Review
 

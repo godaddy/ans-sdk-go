@@ -1,0 +1,27 @@
+# Automatically creates release PRs and GitHub Releases based on Conventional Commits.
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  # Manual trigger for recovery scenarios (e.g., re-running after a failed release).
+  workflow_dispatch:
+
+# contents:write is required for creating git tags and GitHub Releases.
+# pull-requests:write is required for creating and updating release PRs.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Release Please
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
