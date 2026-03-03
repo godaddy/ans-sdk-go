@@ -2,6 +2,17 @@
 
 A comprehensive Go SDK for interacting with the Agent Name Service (ANS) Registry Authority and Transparency Log.
 
+
+## API Specification Reference
+
+The ANS Registry SDK is based off of the REST API. The spec is documented using the OpenAPI (Swagger) specification:
+- [View OpenAPI Spec - Human Readable](https://developer.godaddy.com/doc/endpoint/ans)
+- [OpenAPI Spec - AI/Machine Readable](https://developer.godaddy.com/swagger/swagger_ans.json)
+
+## CLI Tool
+
+A full-featured CLI for interacting with ANS is included in this repository. See [cmd/ans-cli](cmd/ans-cli) for installation and usage instructions.
+
 ## Installation
 
 ```bash
@@ -535,14 +546,8 @@ client.SearchAgents(ctx, url.QueryEscape("Name with spaces"), ...)
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Write tests for your changes
-4. Ensure all tests pass (`go test ./...`)
-5. Run linting (`golangci-lint run ./...`)
-6. Commit your changes (`git commit -m 'Add some amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on
+how to get involved, including commit message conventions, code review process, and more.
 
 ## License
 
