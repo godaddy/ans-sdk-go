@@ -69,7 +69,7 @@ func TestTransparencyClient_GetAgentTransparencyLog(t *testing.T) {
 			response: &models.TransparencyLog{
 				Status:        "ACTIVE",
 				SchemaVersion: "V1",
-				Payload: map[string]interface{}{
+				Payload: map[string]any{
 					"ansId":    "test-agent-123",
 					"ansName":  "ans://v1.0.0.agent-0.ai.domain.com",
 					"raId":     "api.godaddy.com",
@@ -264,7 +264,7 @@ func TestTransparencyClient_GetAgentTransparencyLogAudit(t *testing.T) {
 					{
 						Status:        "ACTIVE",
 						SchemaVersion: "V1",
-						Payload: map[string]interface{}{
+						Payload: map[string]any{
 							"eventType": "AGENT_REGISTERED",
 							"ansId":     "test-agent-123",
 						},
@@ -277,7 +277,7 @@ func TestTransparencyClient_GetAgentTransparencyLogAudit(t *testing.T) {
 					{
 						Status:        "ACTIVE",
 						SchemaVersion: "V1",
-						Payload: map[string]interface{}{
+						Payload: map[string]any{
 							"eventType": "AGENT_RENEWED",
 							"ansId":     "test-agent-123",
 						},
@@ -458,8 +458,8 @@ func TestTransparencyClient_GetLogSchema(t *testing.T) {
 			statusCode: http.StatusOK,
 			response: &models.JSONSchema{
 				"type": "object",
-				"properties": map[string]interface{}{
-					"ansId": map[string]interface{}{
+				"properties": map[string]any{
+					"ansId": map[string]any{
 						"type":   "string",
 						"format": "uuid",
 					},
@@ -534,17 +534,17 @@ func TestTransparencyClient_parsePayloadBySchema(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		payload       map[string]interface{}
+		payload       map[string]any
 		schemaVersion string
 		wantNil       bool
 		wantType      string
 	}{
 		{
 			name: "V1 payload",
-			payload: map[string]interface{}{
+			payload: map[string]any{
 				"logId": "test-log",
-				"producer": map[string]interface{}{
-					"event": map[string]interface{}{
+				"producer": map[string]any{
+					"event": map[string]any{
 						"ansId":     "test-id",
 						"eventType": "AGENT_REGISTERED",
 					},
@@ -555,10 +555,10 @@ func TestTransparencyClient_parsePayloadBySchema(t *testing.T) {
 		},
 		{
 			name: "V0 payload",
-			payload: map[string]interface{}{
+			payload: map[string]any{
 				"logId": "test-log",
-				"producer": map[string]interface{}{
-					"event": map[string]interface{}{
+				"producer": map[string]any{
+					"event": map[string]any{
 						"agentFqdn": "example.com",
 						"agentId":   "test-id",
 					},
@@ -569,7 +569,7 @@ func TestTransparencyClient_parsePayloadBySchema(t *testing.T) {
 		},
 		{
 			name: "empty schema defaults to V0",
-			payload: map[string]interface{}{
+			payload: map[string]any{
 				"logId": "test-log",
 			},
 			schemaVersion: "",
@@ -577,7 +577,7 @@ func TestTransparencyClient_parsePayloadBySchema(t *testing.T) {
 		},
 		{
 			name: "unknown schema falls back to V0",
-			payload: map[string]interface{}{
+			payload: map[string]any{
 				"logId": "test-log",
 			},
 			schemaVersion: "V99",
@@ -607,10 +607,10 @@ func TestTransparencyClient_doRequestWithSchemaVersion_SchemaFromHeader(t *testi
 		w.Header().Set("Content-Type", "application/json")
 		response := models.TransparencyLog{
 			Status: "ACTIVE",
-			Payload: map[string]interface{}{
+			Payload: map[string]any{
 				"logId": "test-log",
-				"producer": map[string]interface{}{
-					"event": map[string]interface{}{
+				"producer": map[string]any{
+					"event": map[string]any{
 						"ansId":     "test-id",
 						"eventType": "AGENT_REGISTERED",
 					},
@@ -697,13 +697,13 @@ func TestTransparencyClient_GetAgentTransparencyLogAudit_WithPayloadParsing(t *t
 			Records: []models.TransparencyLog{
 				{
 					SchemaVersion: "V1",
-					Payload: map[string]interface{}{
+					Payload: map[string]any{
 						"logId": "test-log-1",
 					},
 				},
 				{
 					// No schema version - should default to V0
-					Payload: map[string]interface{}{
+					Payload: map[string]any{
 						"logId": "test-log-2",
 					},
 				},
@@ -807,7 +807,7 @@ func TestTransparencyClient_doRequestWithSchemaVersion_SchemaVersionInBody(t *te
 		response := models.TransparencyLog{
 			Status:        "ACTIVE",
 			SchemaVersion: "V0",
-			Payload: map[string]interface{}{
+			Payload: map[string]any{
 				"logId": "test-log",
 			},
 		}
@@ -913,29 +913,29 @@ func TestTransparencyClient_GetLogSchema_Error(t *testing.T) {
 func TestTransparencyClient_SchemaVersionHandling(t *testing.T) {
 	tests := []struct {
 		name            string
-		responseBody    interface{}
+		responseBody    any
 		schemaHeader    string
 		expectedVersion string
 		validatePayload func(*testing.T, *models.TransparencyLog)
 	}{
 		{
 			name: "V1 schema with header",
-			responseBody: map[string]interface{}{
+			responseBody: map[string]any{
 				"status": "ACTIVE",
-				"payload": map[string]interface{}{
+				"payload": map[string]any{
 					"logId": "01936db8-b65e-7e2f-b5e4-d0b5c1234567",
-					"producer": map[string]interface{}{
-						"event": map[string]interface{}{
+					"producer": map[string]any{
+						"event": map[string]any{
 							"ansId":     "6bf2b7a9-1383-4e33-a945-845f34af7526",
 							"ansName":   "ans://v1.0.0.agent-0.ai.domain.com",
 							"eventType": "AGENT_REGISTERED",
-							"agent": map[string]interface{}{
+							"agent": map[string]any{
 								"host":    "agent-0.ai.domain.com",
 								"version": "v1.0.0",
 							},
-							"attestations": map[string]interface{}{
+							"attestations": map[string]any{
 								"domainValidation": "ACME-DNS-01",
-								"identityCert": map[string]interface{}{
+								"identityCert": map[string]any{
 									"fingerprint": "SHA256:abcdef",
 									"type":        "X509-OV-CLIENT",
 								},
@@ -969,19 +969,19 @@ func TestTransparencyClient_SchemaVersionHandling(t *testing.T) {
 		},
 		{
 			name: "V0 schema with header",
-			responseBody: map[string]interface{}{
+			responseBody: map[string]any{
 				"status": "ACTIVE",
-				"payload": map[string]interface{}{
+				"payload": map[string]any{
 					"logId": "01936db8-b65e-7e2f-b5e4-d0b5c1234568",
-					"producer": map[string]interface{}{
-						"event": map[string]interface{}{
+					"producer": map[string]any{
+						"event": map[string]any{
 							"agentFqdn": "agent-0.capability.provider.domain.com",
 							"agentId":   "6bf2b7a9-1383-4e33-a945-845f34af7527",
 							"ansName":   "mcp://agent-0.capability.provider.v1.0.0.domain.com",
 							"eventType": "AGENT_ACTIVE",
 							"protocol":  "mcp",
-							"raBadge": map[string]interface{}{
-								"attestations": map[string]interface{}{
+							"raBadge": map[string]any{
+								"attestations": map[string]any{
 									"domainValidation": "acme-dns-01",
 								},
 								"badgeUrlStatus": "verified_link",
@@ -1015,19 +1015,19 @@ func TestTransparencyClient_SchemaVersionHandling(t *testing.T) {
 		},
 		{
 			name: "V0 schema without header (default)",
-			responseBody: map[string]interface{}{
+			responseBody: map[string]any{
 				"status": "ACTIVE",
-				"payload": map[string]interface{}{
+				"payload": map[string]any{
 					"logId": "01936db8-b65e-7e2f-b5e4-d0b5c1234569",
-					"producer": map[string]interface{}{
-						"event": map[string]interface{}{
+					"producer": map[string]any{
+						"event": map[string]any{
 							"agentFqdn": "agent.example.com",
 							"agentId":   "test-agent-id",
 							"ansName":   "mcp://agent.example.com",
 							"eventType": "agent_active",
 							"protocol":  "mcp",
-							"raBadge": map[string]interface{}{
-								"attestations":   map[string]interface{}{},
+							"raBadge": map[string]any{
+								"attestations":   map[string]any{},
 								"badgeUrlStatus": "pending_verification",
 								"issuedAt":       "2025-01-15T10:00:00Z",
 								"raId":           "ra.example.com",
@@ -1095,18 +1095,18 @@ func TestTransparencyClient_AuditWithSchemas(t *testing.T) {
 				{
 					Status:        "ACTIVE",
 					SchemaVersion: "V1",
-					Payload: map[string]interface{}{
+					Payload: map[string]any{
 						"logId": "log-v1",
-						"producer": map[string]interface{}{
-							"event": map[string]interface{}{
+						"producer": map[string]any{
+							"event": map[string]any{
 								"ansId":     "ans-id-v1",
 								"ansName":   "ans://v1.0.0.test",
 								"eventType": "AGENT_REGISTERED",
-								"agent": map[string]interface{}{
+								"agent": map[string]any{
 									"host":    "test.com",
 									"version": "v1.0.0",
 								},
-								"attestations": map[string]interface{}{},
+								"attestations": map[string]any{},
 								"issuedAt":     time.Now().Format(time.RFC3339),
 								"raId":         "ra.test",
 								"timestamp":    time.Now().Format(time.RFC3339),
@@ -1119,17 +1119,17 @@ func TestTransparencyClient_AuditWithSchemas(t *testing.T) {
 				{
 					Status:        "ACTIVE",
 					SchemaVersion: "V0",
-					Payload: map[string]interface{}{
+					Payload: map[string]any{
 						"logId": "log-v0",
-						"producer": map[string]interface{}{
-							"event": map[string]interface{}{
+						"producer": map[string]any{
+							"event": map[string]any{
 								"agentFqdn": "agent.test.com",
 								"agentId":   "agent-id-v0",
 								"ansName":   "mcp://test",
 								"eventType": "AGENT_ACTIVE",
 								"protocol":  "mcp",
-								"raBadge": map[string]interface{}{
-									"attestations":   map[string]interface{}{},
+								"raBadge": map[string]any{
+									"attestations":   map[string]any{},
 									"badgeUrlStatus": "verified_link",
 									"issuedAt":       time.Now().Format(time.RFC3339),
 									"raId":           "ra.test",

@@ -4,15 +4,15 @@ import "time"
 
 // TransparencyLog represents the transparency log entry for an agent
 type TransparencyLog struct {
-	MerkleProof   *MerkleProof           `json:"merkleProof,omitempty"`
-	Payload       map[string]interface{} `json:"payload"`
-	SchemaVersion string                 `json:"schemaVersion,omitempty"`
-	Signature     string                 `json:"signature,omitempty"`
-	Status        string                 `json:"status,omitempty"`
+	MerkleProof   *MerkleProof   `json:"merkleProof,omitempty"`
+	Payload       map[string]any `json:"payload"`
+	SchemaVersion string         `json:"schemaVersion,omitempty"`
+	Signature     string         `json:"signature,omitempty"`
+	Status        string         `json:"status,omitempty"`
 
 	// ParsedPayload contains the strongly-typed payload based on schema version
 	// This will be nil if parsing failed or schema is unknown
-	ParsedPayload interface{} `json:"-"`
+	ParsedPayload any `json:"-"`
 }
 
 // GetV1Payload returns the parsed payload as a V1 schema object, or nil if not V1
@@ -73,17 +73,17 @@ type CheckpointResponse struct {
 
 // CheckpointSignature represents a signature on a checkpoint
 type CheckpointSignature struct {
-	SignerName    string                 `json:"signerName,omitempty"`
-	SignatureType string                 `json:"signatureType,omitempty"`
-	Algorithm     string                 `json:"algorithm,omitempty"`
-	KeyHash       string                 `json:"keyHash,omitempty"`
-	RawSignature  string                 `json:"rawSignature,omitempty"`
-	Valid         bool                   `json:"valid,omitempty"`
-	KmsKeyID      string                 `json:"kmsKeyId,omitempty"`
-	Timestamp     *time.Time             `json:"timestamp,omitempty"`
-	JwsSignature  string                 `json:"jwsSignature,omitempty"`
-	JwsHeader     map[string]interface{} `json:"jwsHeader,omitempty"`
-	JwsPayload    map[string]interface{} `json:"jwsPayload,omitempty"`
+	SignerName    string         `json:"signerName,omitempty"`
+	SignatureType string         `json:"signatureType,omitempty"`
+	Algorithm     string         `json:"algorithm,omitempty"`
+	KeyHash       string         `json:"keyHash,omitempty"`
+	RawSignature  string         `json:"rawSignature,omitempty"`
+	Valid         bool           `json:"valid,omitempty"`
+	KmsKeyID      string         `json:"kmsKeyId,omitempty"`
+	Timestamp     *time.Time     `json:"timestamp,omitempty"`
+	JwsSignature  string         `json:"jwsSignature,omitempty"`
+	JwsHeader     map[string]any `json:"jwsHeader,omitempty"`
+	JwsPayload    map[string]any `json:"jwsPayload,omitempty"`
 }
 
 // CheckpointHistoryResponse represents a paginated list of checkpoints
@@ -103,7 +103,7 @@ type PaginationInfo struct {
 }
 
 // JSONSchema represents a JSON schema document
-type JSONSchema map[string]interface{}
+type JSONSchema map[string]any
 
 // CheckpointHistoryParams represents query parameters for checkpoint history
 type CheckpointHistoryParams struct {

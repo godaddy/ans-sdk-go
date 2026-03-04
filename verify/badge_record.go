@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/godaddy/ans-sdk-go/models"
@@ -50,7 +51,7 @@ func ParseAnsBadgeRecord(txt string) (*AnsBadgeRecord, error) {
 
 	// Split by ";" (semicolon), then trim spaces from each part
 	// This handles both "v=x; url=y" and "v=x;url=y" formats
-	for _, part := range strings.Split(txt, ";") {
+	for part := range strings.SplitSeq(txt, ";") {
 		part = strings.TrimSpace(part)
 
 		if v, found := strings.CutPrefix(part, "v="); found {
@@ -112,10 +113,5 @@ func ParseAnsBadgeRecord(txt string) (*AnsBadgeRecord, error) {
 
 // isValidFormatVersion checks if the format version is recognized.
 func isValidFormatVersion(v string) bool {
-	for _, valid := range getValidFormatVersions() {
-		if v == valid {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(getValidFormatVersions(), v)
 }

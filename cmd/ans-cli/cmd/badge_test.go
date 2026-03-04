@@ -126,7 +126,7 @@ func TestPrintTransparencyLog(t *testing.T) {
 				Status:        "ACTIVE",
 				SchemaVersion: string(models.SchemaVersionV1),
 				ParsedPayload: v1,
-				Payload:       map[string]interface{}{"logId": "test"},
+				Payload:       map[string]any{"logId": "test"},
 				Signature:     "abc123def456",
 				MerkleProof: &models.MerkleProof{
 					TreeVersion: 1,
@@ -139,7 +139,7 @@ func TestPrintTransparencyLog(t *testing.T) {
 		{
 			name: "minimal log entry defaults to V0",
 			logEntry: &models.TransparencyLog{
-				Payload: map[string]interface{}{"logId": "test"},
+				Payload: map[string]any{"logId": "test"},
 			},
 			checks: []string{"V0"},
 		},
@@ -579,7 +579,7 @@ func TestPrintPayload(t *testing.T) {
 			name: "raw payload for unknown schema",
 			logEntry: &models.TransparencyLog{
 				SchemaVersion: "UNKNOWN",
-				Payload:       map[string]interface{}{"ansName": "test", "eventType": "AGENT_REGISTERED"},
+				Payload:       map[string]any{"ansName": "test", "eventType": "AGENT_REGISTERED"},
 			},
 			expect: "Unknown",
 		},
@@ -635,7 +635,7 @@ func TestPrintAuditEntryPayload(t *testing.T) {
 		{
 			name: "raw entry",
 			entry: &models.TransparencyLog{
-				Payload: map[string]interface{}{
+				Payload: map[string]any{
 					"eventType": "TEST_EVENT",
 					"timestamp": "2024-01-01T00:00:00Z",
 				},
@@ -660,7 +660,7 @@ func TestPrintAuditEntryPayload(t *testing.T) {
 func TestPrintAuditEntryRawPayload(t *testing.T) {
 	tests := []struct {
 		name    string
-		payload map[string]interface{}
+		payload map[string]any
 	}{
 		{
 			name:    "nil payload does not panic",
