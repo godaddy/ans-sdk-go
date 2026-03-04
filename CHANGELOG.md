@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.4](https://github.com/godaddy/ans-sdk-go/compare/v0.1.3...v0.1.4) (2026-03-04)
+
+
+### Miscellaneous
+
+* **deps:** bump actions/checkout from 4.3.1 to 6.0.2 ([#8](https://github.com/godaddy/ans-sdk-go/issues/8)) ([8a66ea7](https://github.com/godaddy/ans-sdk-go/commit/8a66ea77c451e3cfdfe54c49bb6e35c9824cc919))
+* **deps:** bump actions/upload-artifact from 6.0.0 to 7.0.0 ([#7](https://github.com/godaddy/ans-sdk-go/issues/7)) ([4fcbf6f](https://github.com/godaddy/ans-sdk-go/commit/4fcbf6fa43bc8dbfac37a50f428c877d273060b4))
+
 ## [0.1.3](https://github.com/godaddy/ans-sdk-go/compare/v0.1.2...v0.1.3) (2026-03-04)
 
 
