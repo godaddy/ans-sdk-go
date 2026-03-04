@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.3](https://github.com/godaddy/ans-sdk-go/compare/v0.1.2...v0.1.3) (2026-03-04)
+
+
+### Bug Fixes
+
+* run "go fix" for "any, slices.Contains...etc" ([fdab423](https://github.com/godaddy/ans-sdk-go/commit/fdab423f7e08f779bd7226b545fd6a2701e84d02))
+* update deps ([#5](https://github.com/godaddy/ans-sdk-go/issues/5)) ([fdab423](https://github.com/godaddy/ans-sdk-go/commit/fdab423f7e08f779bd7226b545fd6a2701e84d02))
+
+
+### Miscellaneous
+
+* add dependabot.yml ([fdab423](https://github.com/godaddy/ans-sdk-go/commit/fdab423f7e08f779bd7226b545fd6a2701e84d02))
+
 ## [0.1.2](https://github.com/godaddy/ans-sdk-go/compare/v0.1.1...v0.1.2) (2026-03-04)
 
 
