@@ -24,7 +24,7 @@ func NewFqdn(domain string) (Fqdn, error) {
 	domain = strings.TrimSuffix(domain, ".")
 
 	// Validate each label
-	for _, label := range strings.Split(domain, ".") {
+	for label := range strings.SplitSeq(domain, ".") {
 		if label == "" {
 			return Fqdn{}, errors.New("empty label")
 		}

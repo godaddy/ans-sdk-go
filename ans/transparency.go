@@ -131,7 +131,7 @@ func (c *TransparencyClient) doRequestWithSchemaVersion(ctx context.Context, met
 }
 
 // parsePayloadBySchema parses the payload into the appropriate schema version structure
-func (c *TransparencyClient) parsePayloadBySchema(payload map[string]interface{}, schemaVersion string) interface{} {
+func (c *TransparencyClient) parsePayloadBySchema(payload map[string]any, schemaVersion string) any {
 	// Convert payload back to JSON for parsing
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {

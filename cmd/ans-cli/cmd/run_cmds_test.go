@@ -768,7 +768,7 @@ func TestExecuteEvents_InvalidPollInterval(t *testing.T) {
 func TestRunBadgeWithParams_Success(t *testing.T) {
 	logEntry := &models.TransparencyLog{
 		Status:  "ACTIVE",
-		Payload: map[string]interface{}{"logId": "test"},
+		Payload: map[string]any{"logId": "test"},
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -788,7 +788,7 @@ func TestRunBadgeWithParams_Success(t *testing.T) {
 func TestRunBadgeWithParams_JSONMode(t *testing.T) {
 	logEntry := &models.TransparencyLog{
 		Status:  "ACTIVE",
-		Payload: map[string]interface{}{"logId": "test"},
+		Payload: map[string]any{"logId": "test"},
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -813,7 +813,7 @@ func TestRunBadgeWithParams_WithAuditAndCheckpoint(t *testing.T) {
 		case r.URL.Path == "/v1/agents/agent-123" && r.Method == http.MethodGet:
 			json.NewEncoder(w).Encode(models.TransparencyLog{
 				Status:  "ACTIVE",
-				Payload: map[string]interface{}{"logId": "test"},
+				Payload: map[string]any{"logId": "test"},
 			})
 		case r.URL.Path == "/v1/agents/agent-123/audit":
 			json.NewEncoder(w).Encode(models.TransparencyLogAudit{
@@ -845,7 +845,7 @@ func TestRunBadgeWithParams_JSONWithAuditAndCheckpoint(t *testing.T) {
 		case r.URL.Path == "/v1/agents/agent-123" && r.Method == http.MethodGet:
 			json.NewEncoder(w).Encode(models.TransparencyLog{
 				Status:  "ACTIVE",
-				Payload: map[string]interface{}{"logId": "test"},
+				Payload: map[string]any{"logId": "test"},
 			})
 		case r.URL.Path == "/v1/agents/agent-123/audit":
 			json.NewEncoder(w).Encode(models.TransparencyLogAudit{

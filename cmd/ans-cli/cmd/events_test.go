@@ -699,7 +699,7 @@ func TestRunBadgeWithParams_ServerErrors(t *testing.T) {
 				if r.URL.Path == "/v1/agents/agent-123" && r.Method == http.MethodGet {
 					json.NewEncoder(w).Encode(models.TransparencyLog{
 						Status:  "ACTIVE",
-						Payload: map[string]interface{}{"logId": "test"},
+						Payload: map[string]any{"logId": "test"},
 					})
 				} else {
 					w.WriteHeader(http.StatusInternalServerError)

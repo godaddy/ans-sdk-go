@@ -3,6 +3,7 @@ package verify
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 )
 
@@ -130,10 +131,5 @@ func (v *URLValidator) Validate(rawURL string) error {
 
 // isDomainTrusted checks if the hostname matches any trusted domain.
 func (v *URLValidator) isDomainTrusted(hostname string) bool {
-	for _, trusted := range v.trustedDomains {
-		if hostname == trusted {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(v.trustedDomains, hostname)
 }
